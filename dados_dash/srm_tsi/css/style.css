@@ -1,0 +1,137 @@
+/* Estilos gerais */
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    margin: 0;
+    padding: 0;
+    background-image: linear-gradient(to right, #4facfe 0%, #1316be 100%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    overflow-y: hidden;
+}
+
+/* Cabeçalho */
+.header {
+    background-color: #0056b3;
+    color: white;
+    font-size: 36px;
+    font-weight: 700;
+    text-transform: uppercase;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    width: 100%;
+    position: relative;
+}
+
+/* Logo */
+.logo-container {
+    margin-right: 20px; /* Espaçamento entre logo e título */
+    display: flex;
+    align-items: center;
+}
+
+.logo {
+    width: 120px; /* Ajuste do tamanho da logo */
+    height: auto; /* Mantém a proporção */
+}
+
+/* Título */
+.title-container {
+    text-align: center;
+    flex: 1; /* Garante que o título se ajuste no centro */
+}
+
+/* Formulário */
+.form-container {
+    width: 90%;
+    max-width: 600px;
+    background-color: #ffffff;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    overflow-y: auto;
+    margin: 30px auto;
+}
+
+/* Inputs e botões */
+label {
+    display: block;
+    margin-bottom: 8px;
+    color: #333;
+    font-weight: 500;
+}
+
+input,
+select,
+textarea {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 20px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    box-sizing: border-box;
+    transition: border-color 0.3s;
+    outline: none;
+}
+
+input[type="submit"] {
+    background-color: #007bff;
+    color: white;
+    padding: 12px 20px;
+    border: none;
+    border-radius: 5px;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+input[type="submit"]:hover {
+    background-color: #0056b3;
+}
+
+/* Responsividade */
+@media (max-width: 768px) {
+    .header {
+        flex-wrap: wrap;
+        text-align: center;
+        font-size: 24px;
+    }
+
+    .logo {
+        width: 80px;
+    }
+
+    .title-container {
+        font-size: 20px;
+        text-align: center;
+    }
+
+    .form-container {
+        padding: 15px;
+    }
+
+    input[type="submit"] {
+        font-size: 14px;
+        padding: 10px 15px;
+    }
+}
+
+@media (min-width: 1200px) {
+    .header {
+        font-size: 48px;
+    }
+
+    .logo {
+        width: 150px;
+    }
+
+    .form-container {
+        max-width: 700px;
+    }
+}

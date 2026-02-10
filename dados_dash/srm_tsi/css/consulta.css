@@ -1,0 +1,224 @@
+/* Estilos gerais */
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    margin: 0;
+    padding: 0;
+    background-image: linear-gradient(to right, #4facfe 0%, #00f2fe 100%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start; /* Manter o conteúdo alinhado no topo */
+    height: 100vh; /* Garante que o body ocupe a altura total da tela */
+    overflow: hidden; /* Desativa a rolagem na página inteira */
+}
+
+/* Cabeçalho da consulta */
+.header-consulta {
+    background-color: #0056b3;
+    color: white;
+    font-size: 36px;
+    font-weight: 700;
+    text-transform: uppercase;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    width: 100%;
+    position: relative;
+    border-radius: 8px; /* Bordas arredondadas no cabeçalho */
+}
+
+/* Container do filtro */
+.filter-container {
+    margin: 20px auto;
+    width: 90%;
+    max-width: 1200px;
+    text-align: center;
+    padding: 10px;
+    background-color: #ffffff;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+/* Formulário de filtros */
+.filter-form {
+    display: flex;
+    justify-content: space-between;
+    gap: 20px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+/* Campos individuais do filtro */
+.filter-form .filter-field {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    margin: 10px 0;
+    width: 30%; /* Ajustar para ocupar 30% da largura do filtro container */
+}
+
+.filter-form label {
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+
+/* Estilo dos campos de input e select */
+.filter-form input,
+.filter-form select {
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    font-size: 16px;
+    width: 100%; /* Tornar os campos de filtro 100% do tamanho do .filter-field */
+    box-sizing: border-box;
+}
+
+/* Estilo de foco nos campos */
+.filter-form input:focus,
+.filter-form select:focus {
+    outline: none;
+    border-color: #007bff; /* Cor da borda quando em foco */
+    box-shadow: 0 0 8px rgba(0, 123, 255, 0.5); /* Sombra suave */
+}
+
+/* Botões de filtro */
+.btn-filter {
+    padding: 10px 20px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: bold;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.btn-clear {
+    padding: 10px 20px;
+    background-color: #dc3545;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 14px;
+    text-decoration: none;
+    font-weight: bold;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.btn-filter:hover {
+    background-color: #0056b3;
+}
+
+.btn-clear:hover {
+    background-color: #c82333;
+}
+
+/* Container da tabela com rolagem horizontal */
+.table-container {
+    width: 90%;
+    overflow-x: auto; /* Permitir rolagem horizontal apenas na tabela */
+    overflow-y: hidden; /* Desativa a rolagem vertical */
+    margin: 20px auto;
+    max-width: 1200px; /* Limite máximo para evitar que a tabela seja muito larga */
+}
+
+/* Tabela de Dados */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    background-color: #fff;
+    border-radius: 8px; /* Bordas arredondadas */
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    overflow: hidden; /* Garante que o conteúdo respeite o border-radius */
+}
+
+th, td {
+    padding: 15px;
+    text-align: center;
+    border: 1px solid #ddd;
+    font-size: 16px; /* Melhorar legibilidade */
+}
+
+th {
+    background-color: #007bff;
+    color: white;
+    font-size: 18px;
+    text-transform: uppercase;
+}
+
+td {
+    font-size: 16px;
+}
+
+/* Ações de Editar e Deletar */
+a {
+    text-decoration: none;
+    color: #007bff;
+    font-weight: bold;
+}
+
+a:hover {
+    color: #0056b3;
+}
+
+/* Paginação */
+.pagination {
+    display: flex;
+    justify-content: center;
+    margin: 20px 0;
+}
+
+.pagination a {
+    margin: 0 5px;
+    padding: 10px 15px;
+    background-color: #007bff;
+    color: white;
+    border-radius: 5px;
+    text-decoration: none;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.pagination a:hover {
+    background-color: #0056b3;
+}
+
+.pagination a.active {
+    background-color: #003366;
+}
+
+/* Responsividade */
+@media (max-width: 768px) {
+    .header-consulta {
+        font-size: 24px;
+        padding: 10px;
+    }
+
+    table {
+        width: 100%;
+    }
+
+    th, td {
+        padding: 10px;
+        font-size: 14px;
+    }
+
+    .pagination a {
+        font-size: 14px;
+        padding: 8px 12px;
+    }
+
+    .filter-form {
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .filter-field input,
+    .filter-field select {
+        width: 100%;
+    }
+}

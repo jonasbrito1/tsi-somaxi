@@ -1,0 +1,11 @@
+# Diretório de Backups
+
+Este diretório armazena:
+- Backups de produção exportados
+- Backups locais antes de importações
+- Backups manuais
+
+**IMPORTANTE:**
+- Arquivos .sql NÃO devem ser commitados no Git
+- Mantenha backups apenas localmente
+- Delete backups antigos regularmente

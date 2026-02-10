@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload de Faturas Cove</title>
+</head>
+<body>
+    <h1>Upload de Arquivo de Faturas Cove</h1>
+    <form action="processar_upload_fatura_cove.php" method="post" enctype="multipart/form-data">
+        <input type="file" name="arquivo_xlsx" accept=".xlsx" required>
+        <button type="submit">Enviar</button>
+    </form>
+</body>
+</html>

@@ -1,0 +1,51 @@
+# Environment files
+.env
+.env.*
+.env.production
+.env.local
+
+# Docker volumes
+mysql_data/
+
+# Uploads
+temp_uploads/*.pdf
+uploads/*
+
+# Composer
+vendor/
+composer.lock
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Claude
+.claude/
+
+# Artifacts
+nul
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+error_log
+
+# Temporary files
+tmp/
+temp/
+
+# Large binary files
+*.tgz
+*.bin
+*.deb
+*.dump
+util/AGENT_*.EXE
+util/SentinelAgent_*
+util/SomaxiCyberProtect_*
+util/glpi-*
+util/*.dump

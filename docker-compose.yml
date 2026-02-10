@@ -1,0 +1,79 @@
+version: '3.8'
+
+services:
+  # Aplicação PHP
+  app:
+    build: .
+    container_name: tsi_app
+    ports:
+      - "${APP_PORT:-8076}:80"
+    volumes:
+      - .:/var/www/html
+      - ./php.ini:/usr/local/etc/php/php.ini
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - tsi_network
+    environment:
+      - ENVIRONMENT=${ENVIRONMENT:-local}
+      - DB_HOST=${DB_HOST:-db}
+      - DB_USER=${DB_USER:-somaxi}
+      - DB_PASS=${DB_PASS:-S0m4x1@193}
+      - DB_NAME=${DB_NAME:-dados_tripulantes_tsi}
+      - DB_PORT=${DB_PORT:-3306}
+      - RMM_DB_HOST=${RMM_DB_HOST:-db}
+      - RMM_DB_NAME=${RMM_DB_NAME:-rmm_relatorios}
+      - TZ=${TZ:-America/Sao_Paulo}
+    restart: unless-stopped
+
+  # Banco de Dados MySQL
+  db:
+    image: mysql:8.0
+    container_name: tsi_mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: root123
+      MYSQL_DATABASE: dados_tripulantes_tsi
+      MYSQL_USER: somaxi
+      MYSQL_PASSWORD: S0m4x1@193
+    ports:
+      - "3357:3306"  # Porta atualizada conforme solicitado
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - tsi_network
+    command: --default-authentication-plugin=mysql_native_password
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+
+  # phpMyAdmin
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin:latest
+    container_name: tsi_phpmyadmin
+    restart: always
+    ports:
+      - "8098:80"  # Porta atualizada conforme solicitado
+    environment:
+      PMA_HOST: db
+      PMA_PORT: 3306
+      PMA_USER: somaxi
+      PMA_PASSWORD: S0m4x1@193
+      MYSQL_ROOT_PASSWORD: root123
+      PMA_ARBITRARY: 1
+      PMA_ABSOLUTE_URI: http://localhost:8098/
+    depends_on:
+      - db
+    networks:
+      - tsi_network
+
+volumes:
+  mysql_data:
+    driver: local
+
+networks:
+  tsi_network:
+    driver: bridge
