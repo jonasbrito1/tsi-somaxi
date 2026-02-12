@@ -663,7 +663,7 @@ try {
         <!-- ESTATÍSTICAS -->
         <section class="stats-grid">
             <div class="stat-card ativos">
-                <div class="stat-value"><?php echo number_format($stats['ativos']); ?></div>
+                <div class="stat-value"><?php echo number_format($stats['ativos'], 0, ',', '.'); ?></div>
                 <div class="stat-label">
                     <svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
                     Registros Ativos
@@ -671,7 +671,7 @@ try {
             </div>
             <?php if ($coluna_status_existe): ?>
             <div class="stat-card arquivados">
-                <div class="stat-value"><?php echo number_format($stats['arquivados']); ?></div>
+                <div class="stat-value"><?php echo number_format($stats['arquivados'], 0, ',', '.'); ?></div>
                 <div class="stat-label">
                     <svg class="icon icon-sm" viewBox="0 0 24 24"><path d="m21 8-2-3H5L3 8"/><rect x="3" y="8" width="18" height="13" rx="1"/><path d="M10 12h4"/></svg>
                     Arquivados
@@ -679,7 +679,7 @@ try {
             </div>
             <?php endif; ?>
             <div class="stat-card total">
-                <div class="stat-value"><?php echo number_format($stats['total']); ?></div>
+                <div class="stat-value"><?php echo number_format($stats['total'], 0, ',', '.'); ?></div>
                 <div class="stat-label">
                     <svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>
                     Total
@@ -1111,7 +1111,7 @@ try {
             <?php if ($total_paginas > 1): ?>
             <div class="card-footer" style="padding: 1.5rem; border-top: 1px solid var(--gray-200); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
                 <div class="pagination-info" style="color: var(--gray-600); font-size: var(--font-size-sm);">
-                    Mostrando <?php echo min($offset + 1, $total_registros); ?> - <?php echo min($offset + $registros_por_pagina, $total_registros); ?> de <?php echo number_format($total_registros); ?> registros
+                    Mostrando <?php echo min($offset + 1, $total_registros); ?> - <?php echo min($offset + $registros_por_pagina, $total_registros); ?> de <?php echo number_format($total_registros, 0, ',', '.'); ?> registros
                 </div>
                 <div class="pagination" style="display: flex; gap: 0.5rem; align-items: center;">
                     <?php if ($pagina_atual > 1): ?>

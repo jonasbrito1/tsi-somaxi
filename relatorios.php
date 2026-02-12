@@ -294,7 +294,7 @@ try {
         <!-- RESUMO EXECUTIVO -->
         <section class="stats-grid">
             <div class="stat-card primary">
-                <div class="stat-value"><?php echo number_format($resumo['total_clientes']); ?></div>
+                <div class="stat-value"><?php echo number_format($resumo['total_clientes'], 0, ',', '.'); ?></div>
                 <div class="stat-label">
                     <svg class="icon icon-xs" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
                     Clientes Ativos
@@ -302,7 +302,7 @@ try {
             </div>
 
             <div class="stat-card success">
-                <div class="stat-value"><?php echo number_format($resumo['media_integridade'], 1); ?>%</div>
+                <div class="stat-value"><?php echo number_format($resumo['media_integridade'], 1, ',', '.'); ?>%</div>
                 <div class="stat-label">
                     <svg class="icon icon-xs" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
                     Integridade Media
@@ -310,7 +310,7 @@ try {
             </div>
 
             <div class="stat-card info">
-                <div class="stat-value"><?php echo number_format($resumo['media_disponibilidade'], 1); ?>%</div>
+                <div class="stat-value"><?php echo number_format($resumo['media_disponibilidade'], 1, ',', '.'); ?>%</div>
                 <div class="stat-label">
                     <svg class="icon icon-xs" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
                     Disponibilidade
@@ -318,7 +318,7 @@ try {
             </div>
 
             <div class="stat-card warning">
-                <div class="stat-value"><?php echo number_format($resumo['total_ameacas']); ?></div>
+                <div class="stat-value"><?php echo number_format($resumo['total_ameacas'], 0, ',', '.'); ?></div>
                 <div class="stat-label">
                     <svg class="icon icon-xs" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
                     Ameacas Detectadas
@@ -326,7 +326,7 @@ try {
             </div>
 
             <div class="stat-card primary">
-                <div class="stat-value"><?php echo number_format($resumo['total_dispositivos']); ?></div>
+                <div class="stat-value"><?php echo number_format($resumo['total_dispositivos'], 0, ',', '.'); ?></div>
                 <div class="stat-label">
                     <svg class="icon icon-xs" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
                     Total Dispositivos
@@ -337,7 +337,7 @@ try {
                 <div class="stat-value">
                     <?php
                     $total = $resumo['chamados_resolvidos'] + $resumo['chamados_pendentes'];
-                    echo $total > 0 ? number_format(($resumo['chamados_resolvidos'] / $total) * 100, 1) : 0;
+                    echo $total > 0 ? number_format(($resumo['chamados_resolvidos'] / $total) * 100, 1, ',', '.') : 0;
                     ?>%
                 </div>
                 <div class="stat-label">
@@ -396,12 +396,12 @@ try {
                                 </td>
                                 <td class="font-semibold"><?php echo htmlspecialchars($cliente['tripulante']); ?></td>
                                 <td class="<?php echo $cliente['integridade'] >= 90 ? 'text-success' : ($cliente['integridade'] >= 80 ? 'text-warning' : 'text-danger'); ?>">
-                                    <?php echo number_format($cliente['integridade'], 1); ?>%
+                                    <?php echo number_format($cliente['integridade'], 1, ',', '.'); ?>%
                                 </td>
                                 <td class="<?php echo $cliente['disponibilidade'] >= 95 ? 'text-success' : ($cliente['disponibilidade'] >= 90 ? 'text-warning' : 'text-danger'); ?>">
-                                    <?php echo number_format($cliente['disponibilidade'], 1); ?>%
+                                    <?php echo number_format($cliente['disponibilidade'], 1, ',', '.'); ?>%
                                 </td>
-                                <td><?php echo number_format($cliente['antivirus'], 1); ?>%</td>
+                                <td><?php echo number_format($cliente['antivirus'], 1, ',', '.'); ?>%</td>
                                 <td><?php echo $cliente['ameacas']; ?></td>
                                 <td><?php echo $cliente['registros']; ?></td>
                                 <td>
@@ -455,11 +455,11 @@ try {
                             <?php foreach ($maior_risco as $cliente): ?>
                             <tr>
                                 <td class="font-semibold"><?php echo htmlspecialchars($cliente['tripulante']); ?></td>
-                                <td class="text-danger"><?php echo number_format($cliente['integridade'], 1); ?>%</td>
-                                <td class="text-danger"><?php echo number_format($cliente['disponibilidade'], 1); ?>%</td>
+                                <td class="text-danger"><?php echo number_format($cliente['integridade'], 1, ',', '.'); ?>%</td>
+                                <td class="text-danger"><?php echo number_format($cliente['disponibilidade'], 1, ',', '.'); ?>%</td>
                                 <td class="text-danger"><?php echo $cliente['total_ameacas']; ?></td>
                                 <td class="text-danger"><?php echo $cliente['falhas_backup']; ?></td>
-                                <td><?php echo number_format($cliente['cobertura_av'], 1); ?>%</td>
+                                <td><?php echo number_format($cliente['cobertura_av'], 1, ',', '.'); ?>%</td>
                                 <td>
                                     <?php
                                     $risco = 0;
@@ -538,7 +538,7 @@ try {
                                 <td class="text-warning"><?php echo $backup['com_erro']; ?></td>
                                 <td class="text-danger"><?php echo $backup['com_falha']; ?></td>
                                 <td class="<?php echo $backup['taxa_sucesso'] >= 95 ? 'text-success' : ($backup['taxa_sucesso'] >= 80 ? 'text-warning' : 'text-danger'); ?>">
-                                    <?php echo number_format($backup['taxa_sucesso'], 1); ?>%
+                                    <?php echo number_format($backup['taxa_sucesso'], 1, ',', '.'); ?>%
                                 </td>
                                 <td>
                                     <?php if ($backup['taxa_sucesso'] >= 95): ?>
@@ -578,7 +578,7 @@ try {
                         label: 'Integridade (%)',
                         data: [
                             <?php foreach ($evolucao as $item): ?>
-                                <?php echo number_format($item['integridade'], 1); ?>,
+                                <?php echo number_format($item['integridade'], 1, ',', '.'); ?>,
                             <?php endforeach; ?>
                         ],
                         borderColor: '#3b82f6',
@@ -593,7 +593,7 @@ try {
                         label: 'Disponibilidade (%)',
                         data: [
                             <?php foreach ($evolucao as $item): ?>
-                                <?php echo number_format($item['disponibilidade'], 1); ?>,
+                                <?php echo number_format($item['disponibilidade'], 1, ',', '.'); ?>,
                             <?php endforeach; ?>
                         ],
                         borderColor: '#10b981',

@@ -613,7 +613,7 @@ try {
                 </div>
                 <div class="stat-content">
                     <div class="stat-label">Total Tripulantes</div>
-                    <div class="stat-value"><?php echo number_format($indicadores['total_tripulantes']); ?></div>
+                    <div class="stat-value"><?php echo number_format($indicadores['total_tripulantes'], 0, ',', '.'); ?></div>
                 </div>
             </div>
 
@@ -623,7 +623,7 @@ try {
                 </div>
                 <div class="stat-content">
                     <div class="stat-label">Total Dispositivos</div>
-                    <div class="stat-value"><?php echo number_format($indicadores['total_dispositivos']); ?></div>
+                    <div class="stat-value"><?php echo number_format($indicadores['total_dispositivos'], 0, ',', '.'); ?></div>
                 </div>
             </div>
 
@@ -633,7 +633,7 @@ try {
                 </div>
                 <div class="stat-content">
                     <div class="stat-label">Ameacas Detectadas</div>
-                    <div class="stat-value"><?php echo number_format($indicadores['total_ameacas']); ?></div>
+                    <div class="stat-value"><?php echo number_format($indicadores['total_ameacas'], 0, ',', '.'); ?></div>
                 </div>
             </div>
 
@@ -643,7 +643,7 @@ try {
                 </div>
                 <div class="stat-content">
                     <div class="stat-label">Integridade Media</div>
-                    <div class="stat-value"><?php echo number_format($indicadores['media_integridade'], 1); ?>%</div>
+                    <div class="stat-value"><?php echo number_format($indicadores['media_integridade'], 1, ',', '.'); ?>%</div>
                 </div>
             </div>
         </div>
@@ -755,7 +755,7 @@ try {
                     </div>
                     <div style="flex: 1;">
                         <div style="font-size: var(--font-size-sm); font-weight: 500; color: var(--gray-500); margin-bottom: 0.25rem; text-transform: uppercase; letter-spacing: 0.05em;">Alertas Resolvidos</div>
-                        <div style="font-size: 2rem; font-weight: 700; color: var(--gray-900);"><?php echo number_format($indicadores['total_alertas_resolvidos']); ?></div>
+                        <div style="font-size: 2rem; font-weight: 700; color: var(--gray-900);"><?php echo number_format($indicadores['total_alertas_resolvidos'], 0, ',', '.'); ?></div>
                     </div>
                 </div>
             </div>
@@ -768,7 +768,7 @@ try {
                     </div>
                     <div style="flex: 1;">
                         <div style="font-size: var(--font-size-sm); font-weight: 500; color: var(--gray-500); margin-bottom: 0.25rem; text-transform: uppercase; letter-spacing: 0.05em;">Patches Instalados</div>
-                        <div style="font-size: 2rem; font-weight: 700; color: var(--gray-900);"><?php echo number_format($indicadores['total_patches_instalados']); ?></div>
+                        <div style="font-size: 2rem; font-weight: 700; color: var(--gray-900);"><?php echo number_format($indicadores['total_patches_instalados'], 0, ',', '.'); ?></div>
                     </div>
                 </div>
             </div>
@@ -781,7 +781,7 @@ try {
                     </div>
                     <div style="flex: 1;">
                         <div style="font-size: var(--font-size-sm); font-weight: 500; color: var(--gray-500); margin-bottom: 0.25rem; text-transform: uppercase; letter-spacing: 0.05em;">Acessos Remotos</div>
-                        <div style="font-size: 2rem; font-weight: 700; color: var(--gray-900);"><?php echo number_format($indicadores['total_acessos_remotos']); ?></div>
+                        <div style="font-size: 2rem; font-weight: 700; color: var(--gray-900);"><?php echo number_format($indicadores['total_acessos_remotos'], 0, ',', '.'); ?></div>
                     </div>
                 </div>
             </div>
@@ -794,7 +794,7 @@ try {
                     </div>
                     <div style="flex: 1;">
                         <div style="font-size: var(--font-size-sm); font-weight: 500; color: var(--gray-500); margin-bottom: 0.25rem; text-transform: uppercase; letter-spacing: 0.05em;">Backups Completos</div>
-                        <div style="font-size: 2rem; font-weight: 700; color: var(--gray-900);"><?php echo number_format($indicadores['total_bkp_completo']); ?></div>
+                        <div style="font-size: 2rem; font-weight: 700; color: var(--gray-900);"><?php echo number_format($indicadores['total_bkp_completo'], 0, ',', '.'); ?></div>
                     </div>
                 </div>
             </div>
@@ -807,7 +807,7 @@ try {
                     </div>
                     <div style="flex: 1;">
                         <div style="font-size: var(--font-size-sm); font-weight: 500; color: var(--gray-500); margin-bottom: 0.25rem; text-transform: uppercase; letter-spacing: 0.05em;">Backups com Falha</div>
-                        <div style="font-size: 2rem; font-weight: 700; color: var(--danger);"><?php echo number_format($indicadores['total_bkp_falha']); ?></div>
+                        <div style="font-size: 2rem; font-weight: 700; color: var(--danger);"><?php echo number_format($indicadores['total_bkp_falha'], 0, ',', '.'); ?></div>
                     </div>
                 </div>
             </div>
@@ -820,7 +820,7 @@ try {
                     </div>
                     <div style="flex: 1;">
                         <div style="font-size: var(--font-size-sm); font-weight: 500; color: var(--gray-500); margin-bottom: 0.25rem; text-transform: uppercase; letter-spacing: 0.05em;">Chamados Fechados</div>
-                        <div style="font-size: 2rem; font-weight: 700; color: var(--gray-900);"><?php echo number_format($indicadores['total_chamados_fechados']); ?></div>
+                        <div style="font-size: 2rem; font-weight: 700; color: var(--gray-900);"><?php echo number_format($indicadores['total_chamados_fechados'], 0, ',', '.'); ?></div>
                     </div>
                 </div>
             </div>
@@ -1184,9 +1184,9 @@ try {
         // ==========================================
         function formatarNumeroBR(numero) {
             if (numero === null || numero === undefined) return '0';
-            return new Intl.NumberFormat('pt-BR', {
+            return new Intl.NumberFormat('de-DE', {
                 minimumFractionDigits: 0,
-                maximumFractionDigits: 2
+                maximumFractionDigits: 0
             }).format(numero);
         }
 
