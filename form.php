@@ -6,6 +6,12 @@ ini_set('display_errors', 1);
 session_start();
 
 require_once 'includes/db.php';
+require_once 'includes/auth.php';
+
+// Proteger página - requer login
+require_login();
+
+$user = get_logged_user();
 
 $success_message = '';
 $error_message = '';
@@ -102,9 +108,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $error_message = "Erro ao inserir dados: " . $e->getMessage();
     }
 }
-
-// Informações do usuário logado
-$username = 'Acesso Publico';
 ?>
 
 <!DOCTYPE html>
@@ -116,6 +119,8 @@ $username = 'Acesso Publico';
     <link rel="icon" href="utils/logo_s.png" type="image/png">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/app.css">
+    <script src="js/theme.js"></script>
+    <script src="js/user-dropdown.js"></script>
 </head>
 
 <body>
@@ -157,13 +162,65 @@ $username = 'Acesso Publico';
                     <svg class="icon" viewBox="0 0 24 24"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
                     Relatorios
                 </a>
+                <?php if (is_admin()): ?>
+                <a href="auth/cadastro_usuario.php">
+                    <svg class="icon" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><path d="M20 8v6M23 11h-6"/></svg>
+                    Usuários
+                </a>
+                <?php endif; ?>
             </div>
             <div class="user-section">
-                <div class="user-info">
-                    <div class="user-avatar">
-                        <svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                <button class="theme-toggle-btn" onclick="toggleTheme()" title="Alternar tema">
+                    <svg id="theme-icon-light" class="icon" viewBox="0 0 24 24" style="display: none;">
+                        <circle cx="12" cy="12" r="5"></circle>
+                        <line x1="12" y1="1" x2="12" y2="3"></line>
+                        <line x1="12" y1="21" x2="12" y2="23"></line>
+                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                        <line x1="1" y1="12" x2="3" y2="12"></line>
+                        <line x1="21" y1="12" x2="23" y2="12"></line>
+                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                    </svg>
+                    <svg id="theme-icon-dark" class="icon" viewBox="0 0 24 24">
+                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                    </svg>
+                </button>
+                <div class="user-dropdown">
+                    <button class="user-dropdown-toggle">
+                        <div class="user-avatar">
+                            <svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                        </div>
+                        <span class="user-name"><?php echo htmlspecialchars($user['nome']); ?></span>
+                        <svg class="icon icon-sm chevron" viewBox="0 0 24 24">
+                            <polyline points="6 9 12 15 18 9"></polyline>
+                        </svg>
+                    </button>
+                    <div class="user-dropdown-menu">
+                        <div class="dropdown-header">
+                            <div class="dropdown-user-info">
+                                <div class="dropdown-user-name"><?php echo htmlspecialchars($user['nome']); ?></div>
+                                <div class="dropdown-user-email"><?php echo htmlspecialchars($user['email']); ?></div>
+                            </div>
+                        </div>
+                        <div class="dropdown-divider"></div>
+                        <a href="auth/editar_perfil.php" class="dropdown-item">
+                            <svg class="icon icon-sm" viewBox="0 0 24 24">
+                                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                                <circle cx="12" cy="7" r="4"/>
+                            </svg>
+                            <span>Editar Perfil</span>
+                        </a>
+                        <div class="dropdown-divider"></div>
+                        <a href="auth/logout.php" class="dropdown-item danger">
+                            <svg class="icon icon-sm" viewBox="0 0 24 24">
+                                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                                <polyline points="16 17 21 12 16 7"/>
+                                <line x1="21" y1="12" x2="9" y2="12"/>
+                            </svg>
+                            <span>Sair</span>
+                        </a>
                     </div>
-                    <span><?php echo htmlspecialchars($username); ?></span>
                 </div>
             </div>
         </div>
@@ -381,7 +438,7 @@ $username = 'Acesso Publico';
                                         <select id="mes" name="mes" class="form-control" required>
                                             <option value="">Selecionar mes</option>
                                             <?php
-                                            $meses = ['Janeiro', 'Fevereiro', 'Marco', 'Abril', 'Maio', 'Junho',
+                                            $meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
                                                      'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
                                             foreach ($meses as $mes): ?>
                                                 <option value="<?php echo $mes; ?>"><?php echo $mes; ?></option>
@@ -840,8 +897,12 @@ $username = 'Acesso Publico';
                 }
             });
 
-            // Click direto na area
+            // Click direto na area (excluindo o botao para evitar duplicacao)
             uploadArea.addEventListener('click', function(e) {
+                // Nao acionar se o clique for no botao (para evitar duplo trigger)
+                if (e.target.tagName === 'BUTTON' || e.target.closest('button')) {
+                    return;
+                }
                 if (e.target === uploadArea || e.target.closest('.upload-area-modern')) {
                     pdfUpload.click();
                 }
@@ -1007,7 +1068,7 @@ $username = 'Acesso Publico';
                         const mesesNomes = {
                             '01': 'Janeiro', '1': 'Janeiro',
                             '02': 'Fevereiro', '2': 'Fevereiro',
-                            '03': 'Marco', '3': 'Marco',
+                            '03': 'Março', '3': 'Março',
                             '04': 'Abril', '4': 'Abril',
                             '05': 'Maio', '5': 'Maio',
                             '06': 'Junho', '6': 'Junho',

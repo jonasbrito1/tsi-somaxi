@@ -92,8 +92,8 @@ try {
 
     // Log inicial
     error_log("==========================================================");
-    error_log("📄 NOVO PDF RECEBIDO: " . $uploadedFile['name']);
-    error_log("📦 Tamanho: " . round($uploadedFile['size'] / 1024, 2) . " KB");
+    error_log(" NOVO PDF RECEBIDO: " . $uploadedFile['name']);
+    error_log(" Tamanho: " . round($uploadedFile['size'] / 1024, 2) . " KB");
     error_log("==========================================================");
 
     // PROCESSAMENTO INTELIGENTE
@@ -101,6 +101,17 @@ try {
 
     // Limpar arquivo temporário
     unlink($tempFilePath);
+
+    // Log dos dados extraídos antes de retornar
+    error_log("=== DADOS EXTRAÍDOS ANTES DE RETORNAR ===");
+    error_log("Tripulante: " . ($extractedData['tripulante'] ?? 'VAZIO'));
+    error_log("Mes: " . ($extractedData['mes'] ?? 'VAZIO'));
+    error_log("Ano: " . ($extractedData['ano'] ?? 'VAZIO'));
+    error_log("Pontuação Integridade: " . ($extractedData['pontuacao_integridade'] ?? 0));
+    error_log("Total Dispositivos: " . ($extractedData['total_dispositivos'] ?? 0));
+    error_log("Tipo Servidor: " . ($extractedData['tipo_servidor'] ?? 0));
+    error_log("Tipo Desktop: " . ($extractedData['tipo_desktop'] ?? 0));
+    error_log("Tipo Notebook: " . ($extractedData['tipo_notebook'] ?? 0));
 
     // Retornar resultado
     echo json_encode([
@@ -147,7 +158,7 @@ function processAdvancedPDF($pdfPath, $originalName) {
             error_log("✅ Método 1: Smalot/PdfParser - " . strlen($extractedText) . " caracteres extraídos");
 
         } catch (Exception $e) {
-            error_log("⚠️ Método 1 falhou: " . $e->getMessage());
+            error_log("⚠ Método 1 falhou: " . $e->getMessage());
         }
     }
 
@@ -191,8 +202,8 @@ function processAdvancedPDF($pdfPath, $originalName) {
     }
 
     // Processar texto extraído
-    error_log("📊 Total de texto extraído: " . strlen($extractedText) . " caracteres");
-    error_log("🔧 Método usado: $extractionMethod");
+    error_log(" Total de texto extraído: " . strlen($extractedText) . " caracteres");
+    error_log(" Método usado: $extractionMethod");
 
     // Extrair dados estruturados
     $data = extractStructuredData($extractedText, $originalName);
@@ -247,7 +258,10 @@ function extractTextPHPNative($pdfPath) {
  */
 function extractStructuredData($text, $filename) {
     error_log("=== INICIANDO EXTRAÇÃO ESTRUTURADA ===");
-    error_log("Primeiros 300 chars: " . substr($text, 0, 300));
+    error_log("Filename: " . $filename);
+    error_log("Tamanho do texto: " . strlen($text) . " caracteres");
+    error_log("Primeiros 500 chars: " . substr($text, 0, 500));
+    error_log("Últimos 500 chars: " . substr($text, -500));
 
     $data = [];
 
@@ -283,12 +297,18 @@ function extractStructuredData($text, $filename) {
     // Pontuação de Integridade - Valor dentro de círculo no início do relatório
     // O valor aparece APÓS o título, geralmente após várias linhas
     $data['pontuacao_integridade'] = $extractNum([
-        // Padrão: "Pontuação de integridade" seguido por conteúdo e depois número%
-        '/Pontuação de integridade.*?Relatório Executivo.*?(\d+[,.]?\d*)\s*%/is',
+        // Padrão principal: Pontuação de integridade seguido pelo valor
+        '/Pontuação de integridade.*?(\d+[,.]?\d*)\s*%/is',
+        '/Integrity score.*?(\d+[,.]?\d*)\s*%/is',
         // Padrão: busca perto do título do relatório
         '/Efetividade da proteção.*?(\d+[,.]?\d*)\s*%/is',
+        '/Protection effectiveness.*?(\d+[,.]?\d*)\s*%/is',
+        // Padrão com contexto expandido
+        '/Relatório Executivo.*?(\d+[,.]?\d*)\s*%/is',
+        '/Executive Report.*?(\d+[,.]?\d*)\s*%/is',
         // Padrão backup: número% próximo de "Pontuação de integridade"
         '/(\d+[,.]?\d*)\s*%\s*Pontuação de integridade/i',
+        '/(\d+[,.]?\d*)\s*%\s*Integrity score/i',
     ]);
 
     // Monitoramento Proativo - Seção Breakdown, primeira coluna, valor ao lado do título
@@ -370,8 +390,8 @@ function extractStructuredData($text, $filename) {
     $data['tipo_desktop'] = $extractNum([
         '/(\d+)\s+Desktops?\b/i',
         '/(\d+)\s+Desktop\b/i',
-        '/Desktop(?:s)?\s*:?\s*(\d+)/i',
-        '/(\d+)\s*Workstation(?:s)?/i',
+        '/Desktop(?:s)?\s*(\d+)/i',
+        '/(\d+)\s+Workstation(?:s)?\b/i',
     ]) ?: 0;
 
     // Notebooks
@@ -391,7 +411,7 @@ function extractStructuredData($text, $filename) {
 
     // IMPORTANTE: Quando houver "Outros", somar aos Desktops
     if ($outros > 0) {
-        error_log("⚠️ Encontrados $outros dispositivos 'Outros' - somando aos Desktops");
+        error_log("⚠ Encontrados $outros dispositivos 'Outros' - somando aos Desktops");
         $data['tipo_desktop'] += $outros;
         error_log("✅ Desktops ajustado: {$data['tipo_desktop']} (incluindo $outros Outros)");
     }
@@ -493,6 +513,63 @@ function extractStructuredData($text, $filename) {
         }
     }
 
+    // === WEB PROTECTION - Dados adicionais ===
+    $data['web_protection_filtradas_bloqueadas'] = $extractNum([
+        '/Web protection.*?filtradas.*?(\d+)/is',
+        '/Filtradas.*?bloqueadas.*?(\d+)/is',
+        '/(\d+)\s+URLs?\s+bloqueadas/i',
+        '/Blocked\s+URLs?.*?(\d+)/i',
+        '/(\d+)\s+filtered/i',
+    ]) ?: 0;
+
+    $data['web_protection_mal_intencionadas_bloqueadas'] = $extractNum([
+        '/Mal[\s-]?intencionadas.*?(\d+)/is',
+        '/(\d+)\s+mal[\s-]?intencionadas/is',
+        '/Malicious.*?(\d+)/is',
+        '/(\d+)\s+malicious/i',
+    ]) ?: 0;
+
+    // === BACKUP - Informações ===
+    $data['bkp_completo'] = $extractNum([
+        '/Backup.*?completo[s]?.*?(\d+)/is',
+        '/(\d+)\s+backup[s]?\s+completo/is',
+        '/Successful\s+backup[s]?.*?(\d+)/is',
+        '/(\d+)\s+successful/i',
+        '/Completo[s]?.*?(\d+)/is',
+    ]) ?: 0;
+
+    $data['bkp_com_erro'] = $extractNum([
+        '/Backup.*?erro[s]?.*?(\d+)/is',
+        '/(\d+)\s+com\s+erro/is',
+        '/Backup.*?warning[s]?.*?(\d+)/is',
+        '/(\d+)\s+warning/i',
+    ]) ?: 0;
+
+    $data['bkp_com_falha'] = $extractNum([
+        '/Backup.*?falha[s]?.*?(\d+)/is',
+        '/(\d+)\s+com\s+falha/is',
+        '/Backup.*?failed.*?(\d+)/is',
+        '/(\d+)\s+failed/i',
+        '/(\d+)\s+falhou/i',
+    ]) ?: 0;
+
+    // === CHAMADOS - Service Desk ===
+    $data['num_chamados_abertos'] = $extractNum([
+        '/Chamados.*?aberto[s]?.*?(\d+)/is',
+        '/(\d+)\s+chamados?\s+abertos?/is',
+        '/Tickets?.*?opened.*?(\d+)/is',
+        '/(\d+)\s+tickets?\s+opened/is',
+        '/New\s+tickets?.*?(\d+)/is',
+    ]) ?: 0;
+
+    $data['num_chamados_fechados'] = $extractNum([
+        '/Chamados.*?fechado[s]?.*?(\d+)/is',
+        '/(\d+)\s+chamados?\s+fechados?/is',
+        '/Tickets?.*?closed.*?(\d+)/is',
+        '/(\d+)\s+tickets?\s+closed/is',
+        '/Resolved\s+tickets?.*?(\d+)/is',
+    ]) ?: 0;
+
     // === GARANTIR ZEROS PARA CAMPOS NÃO ENCONTRADOS ===
     $allFields = [
         'pontuacao_integridade', 'monitoramento_proativo', 'disponibilidade_servidor', 'falha_logon',
@@ -517,33 +594,64 @@ function extractStructuredData($text, $filename) {
 }
 
 /**
- * Extrai nome do cliente
+ * Extrai nome do cliente (VERSÃO MELHORADA)
  */
 function extractClient($text, $filename) {
-    // Padrões específicos de relatórios TSI
+    // Padrões específicos de relatórios TSI no TEXTO
     $patterns = [
-        '/Gerado para\s+([A-Za-z\s&]+)\s+para o período/i',
-        '/Cliente:\s*([A-Za-z\s&]+)/i',
-        '/Empresa:\s*([A-Za-z\s&]+)/i',
+        '/Gerado para\s+([A-Za-z\s&\.]+)\s+para/i',
+        '/Cliente:\s*([A-Za-z\s&\.]+)/i',
+        '/Empresa:\s*([A-Za-z\s&\.]+)/i',
+        '/Company:\s*([A-Za-z\s&\.]+)/i',
+        '/Report for\s+([A-Za-z\s&\.]+)/i',
     ];
 
     foreach ($patterns as $pattern) {
         if (preg_match($pattern, $text, $matches)) {
             $name = trim($matches[1]);
             if (strlen($name) >= 3) {
+                error_log("✅ Cliente extraído do texto: $name");
                 return $name;
             }
         }
     }
 
-    // Fallback: extrair do nome do arquivo
+    // Fallback MELHORADO: extrair do nome do arquivo
+    // Exemplos: "Atria_Corp_January_2026" -> "Atria Corp"
+    //           "ABC_Company_Dec_2025" -> "ABC Company"
+    //           "MyClient_2025" -> "MyClient"
+
     $name = pathinfo($filename, PATHINFO_FILENAME);
-    $name = preg_replace('/[_-].*/', '', $name);
-    return ucfirst(strtolower($name));
+
+    // Padrão 1: Nome_Nome_Mes_Ano (ex: Atria_Corp_January_2026)
+    if (preg_match('/^(.+?)_(January|February|March|April|May|June|July|August|September|October|November|December|Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)_?\d{4}$/i', $name, $matches)) {
+        $clientName = str_replace('_', ' ', $matches[1]);
+        error_log("✅ Cliente extraído do filename (padrão Mes_Ano): $clientName");
+        return ucwords(strtolower($clientName));
+    }
+
+    // Padrão 2: Nome_Ano (ex: ClientName_2026)
+    if (preg_match('/^(.+?)_\d{4}$/i', $name, $matches)) {
+        $clientName = str_replace('_', ' ', $matches[1]);
+        error_log("✅ Cliente extraído do filename (padrão Ano): $clientName");
+        return ucwords(strtolower($clientName));
+    }
+
+    // Padrão 3: Pegar tudo antes do primeiro número de 4 dígitos (ano)
+    if (preg_match('/^(.+?)[\s_-]?\d{4}/', $name, $matches)) {
+        $clientName = str_replace(['_', '-'], ' ', $matches[1]);
+        error_log("✅ Cliente extraído do filename (antes do ano): $clientName");
+        return ucwords(strtolower($clientName));
+    }
+
+    // Último recurso: usar o nome completo do arquivo (sem extensão)
+    $clientName = str_replace(['_', '-'], ' ', $name);
+    error_log("⚠ Cliente usando nome completo do arquivo: $clientName");
+    return ucwords(strtolower($clientName));
 }
 
 /**
- * Extrai período (mês e ano)
+ * Extrai período (mês e ano) - VERSÃO MELHORADA
  */
 function extractPeriod($text, $filename) {
     // PRIORIDADE 1: Extrair do padrão "Gerado para [NOME] para [MÊS] [ANO]"
@@ -552,18 +660,18 @@ function extractPeriod($text, $filename) {
         $ano = trim($match[2]);
 
         $meses = [
-            'janeiro' => '01', 'january' => '01',
-            'fevereiro' => '02', 'february' => '02',
-            'março' => '03', 'march' => '03',
-            'abril' => '04', 'april' => '04',
-            'maio' => '05', 'may' => '05',
-            'junho' => '06', 'june' => '06',
-            'julho' => '07', 'july' => '07',
-            'agosto' => '08', 'august' => '08',
-            'setembro' => '09', 'september' => '09',
-            'outubro' => '10', 'october' => '10',
-            'novembro' => '11', 'november' => '11',
-            'dezembro' => '12', 'december' => '12'
+            'janeiro' => 'Janeiro', 'january' => 'Janeiro',
+            'fevereiro' => 'Fevereiro', 'february' => 'Fevereiro',
+            'março' => 'Março', 'march' => 'Março',
+            'abril' => 'Abril', 'april' => 'Abril',
+            'maio' => 'Maio', 'may' => 'Maio',
+            'junho' => 'Junho', 'june' => 'Junho',
+            'julho' => 'Julho', 'july' => 'Julho',
+            'agosto' => 'Agosto', 'august' => 'Agosto',
+            'setembro' => 'Setembro', 'september' => 'Setembro',
+            'outubro' => 'Outubro', 'october' => 'Outubro',
+            'novembro' => 'Novembro', 'november' => 'Novembro',
+            'dezembro' => 'Dezembro', 'december' => 'Dezembro'
         ];
 
         $mes = $meses[strtolower($mesPortugues)] ?? normalizeMonth($mesPortugues);
@@ -571,44 +679,78 @@ function extractPeriod($text, $filename) {
         return [$mes, intval($ano)];
     }
 
-    // PRIORIDADE 2: Padrões genéricos de mês/ano no texto
+    // PRIORIDADE 2: Extrair do FILENAME (padrões melhorados)
+    // Exemplos: "Atria_Corp_January_2026", "Client_Dec_2025", "Report_2026_January"
+
+    // Padrão A: ...MesCompleto_Ano (ex: January_2026, December_2025)
+    if (preg_match('/(January|February|March|April|May|June|July|August|September|October|November|December)[\s_-]?(\d{4})/i', $filename, $matches)) {
+        $mes = normalizeMonth($matches[1]);
+        $ano = intval($matches[2]);
+        error_log("✅ Período extraído do filename (Mês_Ano): $mes / $ano");
+        return [$mes, $ano];
+    }
+
+    // Padrão B: ...Ano_MesCompleto (ex: 2026_January)
+    if (preg_match('/(\d{4})[\s_-]?(January|February|March|April|May|June|July|August|September|October|November|December)/i', $filename, $matches)) {
+        $mes = normalizeMonth($matches[2]);
+        $ano = intval($matches[1]);
+        error_log("✅ Período extraído do filename (Ano_Mês): $mes / $ano");
+        return [$mes, $ano];
+    }
+
+    // Padrão C: ...MesAbreviado_Ano (ex: Jan_2026, Dec_2025)
+    if (preg_match('/(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[\s_-]?(\d{4})/i', $filename, $matches)) {
+        $mes = normalizeMonth($matches[1]);
+        $ano = intval($matches[2]);
+        error_log("✅ Período extraído do filename (Mês abreviado_Ano): $mes / $ano");
+        return [$mes, $ano];
+    }
+
+    // Padrão D: ...Mês em português (ex: Janeiro_2026, Dezembro_2025)
+    if (preg_match('/(Janeiro|Fevereiro|Março|Abril|Maio|Junho|Julho|Agosto|Setembro|Outubro|Novembro|Dezembro)[\s_-]?(\d{4})/i', $filename, $matches)) {
+        $mes = normalizeMonth($matches[1]);
+        $ano = intval($matches[2]);
+        error_log("✅ Período extraído do filename (Mês PT_Ano): $mes / $ano");
+        return [$mes, $ano];
+    }
+
+    // PRIORIDADE 3: Padrões genéricos no TEXTO
     $patterns = [
-        '/(\w+)\s+(\d{4})/i',
-        '/(\d{4})\s+(\w+)/i',
+        '/(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{4})/i',
+        '/(\d{4})\s+(January|February|March|April|May|June|July|August|September|October|November|December)/i',
+        '/(Janeiro|Fevereiro|Março|Abril|Maio|Junho|Julho|Agosto|Setembro|Outubro|Novembro|Dezembro)\s+(\d{4})/i',
     ];
 
     foreach ($patterns as $pattern) {
         if (preg_match($pattern, $text, $matches)) {
-            $mes = normalizeMonth($matches[1]);
-            $ano = is_numeric($matches[1]) ? intval($matches[2]) : intval($matches[1]);
+            if (is_numeric($matches[1])) {
+                $ano = intval($matches[1]);
+                $mes = normalizeMonth($matches[2]);
+            } else {
+                $mes = normalizeMonth($matches[1]);
+                $ano = intval($matches[2]);
+            }
             if ($ano > 2000 && !empty($mes)) {
-                error_log("✅ Período extraído de padrão genérico: $mes / $ano");
+                error_log("✅ Período extraído do texto: $mes / $ano");
                 return [$mes, $ano];
             }
         }
     }
 
-    // PRIORIDADE 3 (Fallback): Extrair do filename
-    if (preg_match('/(\w+)_(\d{4})/i', $filename, $matches)) {
-        $mes = normalizeMonth($matches[1]);
-        $ano = intval($matches[2]);
-        error_log("✅ Período extraído do filename: $mes / $ano");
-        return [$mes, $ano];
-    }
-
     // ÚLTIMO RECURSO: mês anterior
-    $mes = date('n') - 1;
+    $mesNum = date('n') - 1;
     $ano = date('Y');
-    if ($mes <= 0) {
-        $mes = 12;
+    if ($mesNum <= 0) {
+        $mesNum = 12;
         $ano--;
     }
 
     $meses = ['', 'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
               'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
 
-    error_log("⚠️ Usando mês anterior como fallback: {$meses[$mes]} / $ano");
-    return [$meses[$mes], $ano];
+    $mes = $meses[$mesNum];
+    error_log("⚠ Usando mês anterior como fallback: $mes / $ano");
+    return [$mes, $ano];
 }
 
 /**

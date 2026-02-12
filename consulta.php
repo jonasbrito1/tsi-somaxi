@@ -7,6 +7,12 @@ ini_set('display_errors', 1);
 session_start();
 
 require_once 'includes/db.php';
+require_once 'includes/auth.php';
+
+// Proteger página - requer login
+require_login();
+
+$user = get_logged_user();
 
 // Verificar se a coluna 'status' existe na tabela
 $coluna_status_existe = false;
@@ -20,6 +26,18 @@ try {
 
 // Inicializar mensagem de sucesso
 $mensagem_sucesso = '';
+
+// Verificar se há mensagem de sucesso na URL
+if (isset($_GET['updated']) && $_GET['updated'] == '1') {
+    $mensagem_sucesso = 'Registro atualizado com sucesso!';
+} elseif (isset($_GET['deleted']) && $_GET['deleted'] == '1') {
+    $mensagem_sucesso = 'Registro excluído com sucesso!';
+}
+
+// Verificar se há mensagem de erro na URL
+if (isset($_GET['error']) && $_GET['error'] == '1' && isset($_GET['message'])) {
+    $mensagem_sucesso = 'Erro: ' . htmlspecialchars($_GET['message']);
+}
 
 // Processar ações de arquivamento (apenas se a coluna status existir)
 if ($_POST && $coluna_status_existe) {
@@ -84,10 +102,23 @@ $filtro_mes = isset($_GET['mes']) ? trim($_GET['mes']) : '';
 $filtro_ano = isset($_GET['ano']) ? trim($_GET['ano']) : '';
 $filtro_status = isset($_GET['status']) ? trim($_GET['status']) : 'ativo';
 
+// Paginação
+$registros_por_pagina = 50;
+$pagina_atual = isset($_GET['pagina']) ? max(1, intval($_GET['pagina'])) : 1;
+$offset = ($pagina_atual - 1) * $registros_por_pagina;
+
 // Se a coluna status não existe, forçar mostrar todos
 if (!$coluna_status_existe) {
     $filtro_status = 'todos';
 }
+
+// Construir query string para preservar filtros nos links
+$query_params = [];
+if (!empty($filtro_tripulante)) $query_params['tripulante'] = $filtro_tripulante;
+if (!empty($filtro_mes)) $query_params['mes'] = $filtro_mes;
+if (!empty($filtro_ano)) $query_params['ano'] = $filtro_ano;
+if (!empty($filtro_status) && $filtro_status !== 'ativo') $query_params['status'] = $filtro_status;
+$query_string = !empty($query_params) ? '&' . http_build_query($query_params) : '';
 
 // Obter lista de tripulantes para o datalist
 $tripulantes = [];
@@ -99,7 +130,8 @@ try {
     $tripulantes = [];
 }
 
-// Construir a query com filtros
+// Construir a query com filtros (primeiro para contar total)
+$sql_count = "SELECT COUNT(*) as total FROM tabela_dados_tsi WHERE 1=1";
 $sql = "SELECT * FROM tabela_dados_tsi WHERE 1=1";
 $params = [];
 
@@ -107,34 +139,55 @@ $params = [];
 if ($coluna_status_existe) {
     if ($filtro_status === 'ativo') {
         $sql .= " AND (status IS NULL OR status = 'ativo')";
+        $sql_count .= " AND (status IS NULL OR status = 'ativo')";
     } elseif ($filtro_status === 'arquivado') {
         $sql .= " AND status = 'arquivado'";
+        $sql_count .= " AND status = 'arquivado'";
     }
-    // Se for 'todos', não adiciona filtro de status
 }
 
 if (!empty($filtro_tripulante)) {
     $sql .= " AND tripulante LIKE :tripulante";
+    $sql_count .= " AND tripulante LIKE :tripulante";
     $params[':tripulante'] = "%$filtro_tripulante%";
 }
 
 if (!empty($filtro_mes)) {
     $sql .= " AND mes = :mes";
+    $sql_count .= " AND mes = :mes";
     $params[':mes'] = $filtro_mes;
 }
 
 if (!empty($filtro_ano)) {
     $sql .= " AND ano = :ano";
+    $sql_count .= " AND ano = :ano";
     $params[':ano'] = $filtro_ano;
 }
 
-$sql .= " ORDER BY created_at DESC";
+// Contar total de registros
+$total_registros = 0;
+try {
+    $stmt_count = $pdo->prepare($sql_count);
+    $stmt_count->execute($params);
+    $total_registros = $stmt_count->fetch(PDO::FETCH_ASSOC)['total'];
+} catch (Exception $e) {
+    $total_registros = 0;
+}
+
+$total_paginas = ceil($total_registros / $registros_por_pagina);
+
+$sql .= " ORDER BY created_at DESC LIMIT :limit OFFSET :offset";
 
 // Preparar e executar consulta
 $registros = [];
 try {
     $stmt = $pdo->prepare($sql);
-    $stmt->execute($params);
+    foreach ($params as $key => $value) {
+        $stmt->bindValue($key, $value);
+    }
+    $stmt->bindValue(':limit', $registros_por_pagina, PDO::PARAM_INT);
+    $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+    $stmt->execute();
     $registros = $stmt->fetchAll(PDO::FETCH_ASSOC);
 } catch (Exception $e) {
     $mensagem_sucesso = "Erro na consulta: " . $e->getMessage();
@@ -201,9 +254,6 @@ try {
     // Em caso de erro, continuar com array vazio
     $periodos = [];
 }
-
-// Informações do usuário logado
-$username = 'Usuário Público';
 ?>
 
 <!DOCTYPE html>
@@ -215,6 +265,8 @@ $username = 'Usuário Público';
     <link rel="icon" href="utils/logo_s.png" type="image/png">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/app.css">
+    <script src="js/theme.js"></script>
+    <script src="js/user-dropdown.js"></script>
     <style>
         /* Estilos específicos da página de consulta */
         .data-table {
@@ -346,10 +398,140 @@ $username = 'Usuário Público';
                 min-width: 600px;
             }
         }
+
+        /* Estilos de Paginação */
+        .pagination {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .pagination .btn-sm {
+            min-height: 2.5rem;
+            padding: 0.5rem 0.75rem;
+            transition: all 0.2s ease;
+        }
+
+        .pagination .btn-primary {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+            font-weight: 600;
+        }
+
+        .pagination .btn-secondary:hover {
+            background: var(--gray-200);
+            transform: translateY(-1px);
+        }
+
+        .pagination-info {
+            font-weight: 500;
+        }
+
+        /* Loading State */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255, 255, 255, 0.9);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        }
+
+        .loading-overlay.active {
+            display: flex;
+        }
+
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid var(--gray-300);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Melhorias de hover na tabela */
+        .data-table tbody tr {
+            transition: all 0.2s ease;
+        }
+
+        .data-table tbody tr:hover {
+            transform: translateX(2px);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Animação para mensagens */
+        @keyframes slideInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .message {
+            animation: slideInDown 0.4s ease-out;
+        }
+
+        /* Responsive da paginação */
+        @media (max-width: 768px) {
+            .card-footer {
+                flex-direction: column;
+                align-items: flex-start !important;
+            }
+
+            .pagination {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .pagination-info {
+                width: 100%;
+                text-align: center;
+            }
+
+            /* Responsividade dos botões de filtro */
+            .filter-content > form > div:last-of-type {
+                flex-direction: column !important;
+                align-items: stretch !important;
+            }
+
+            .filter-content > form > div:last-of-type > div {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .filter-content > form > div:last-of-type button,
+            .filter-content > form > div:last-of-type a {
+                flex: 1;
+                justify-content: center;
+            }
+        }
     </style>
 </head>
 
 <body>
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div style="text-align: center;">
+            <div class="loading-spinner"></div>
+            <p style="margin-top: 1rem; color: var(--gray-600); font-weight: 500;">Carregando...</p>
+        </div>
+    </div>
+
     <!-- HEADER -->
     <header class="app-header">
         <div class="header-content">
@@ -373,28 +555,80 @@ $username = 'Usuário Público';
         <div class="nav-container">
             <div class="nav-links">
                 <a href="index.php">
-                    <svg class="icon icon-sm" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
+                    <svg class="icon" viewBox="0 0 24 24"><path d="M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z"/></svg>
                     Dashboard
                 </a>
                 <a href="form.php">
-                    <svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+                    <svg class="icon" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
                     Novo Registro
                 </a>
                 <a href="consulta.php" class="active">
-                    <svg class="icon icon-sm" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-                    Consultar
+                    <svg class="icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                    Consultar Dados
                 </a>
                 <a href="relatorios.php">
-                    <svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
-                    Relatórios
+                    <svg class="icon" viewBox="0 0 24 24"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
+                    Relatorios
                 </a>
+                <?php if (is_admin()): ?>
+                <a href="auth/cadastro_usuario.php">
+                    <svg class="icon" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><path d="M20 8v6M23 11h-6"/></svg>
+                    Usuários
+                </a>
+                <?php endif; ?>
             </div>
             <div class="user-section">
-                <div class="user-info">
-                    <div class="user-avatar">
-                        <svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                <button class="theme-toggle-btn" onclick="toggleTheme()" title="Alternar tema">
+                    <svg id="theme-icon-light" class="icon" viewBox="0 0 24 24" style="display: none;">
+                        <circle cx="12" cy="12" r="5"></circle>
+                        <line x1="12" y1="1" x2="12" y2="3"></line>
+                        <line x1="12" y1="21" x2="12" y2="23"></line>
+                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                        <line x1="1" y1="12" x2="3" y2="12"></line>
+                        <line x1="21" y1="12" x2="23" y2="12"></line>
+                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                    </svg>
+                    <svg id="theme-icon-dark" class="icon" viewBox="0 0 24 24">
+                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                    </svg>
+                </button>
+                <div class="user-dropdown">
+                    <button class="user-dropdown-toggle">
+                        <div class="user-avatar">
+                            <svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                        </div>
+                        <span class="user-name"><?php echo htmlspecialchars($user['nome']); ?></span>
+                        <svg class="icon icon-sm chevron" viewBox="0 0 24 24">
+                            <polyline points="6 9 12 15 18 9"></polyline>
+                        </svg>
+                    </button>
+                    <div class="user-dropdown-menu">
+                        <div class="dropdown-header">
+                            <div class="dropdown-user-info">
+                                <div class="dropdown-user-name"><?php echo htmlspecialchars($user['nome']); ?></div>
+                                <div class="dropdown-user-email"><?php echo htmlspecialchars($user['email']); ?></div>
+                            </div>
+                        </div>
+                        <div class="dropdown-divider"></div>
+                        <a href="auth/editar_perfil.php" class="dropdown-item">
+                            <svg class="icon icon-sm" viewBox="0 0 24 24">
+                                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                                <circle cx="12" cy="7" r="4"/>
+                            </svg>
+                            <span>Editar Perfil</span>
+                        </a>
+                        <div class="dropdown-divider"></div>
+                        <a href="auth/logout.php" class="dropdown-item danger">
+                            <svg class="icon icon-sm" viewBox="0 0 24 24">
+                                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                                <polyline points="16 17 21 12 16 7"/>
+                                <line x1="21" y1="12" x2="9" y2="12"/>
+                            </svg>
+                            <span>Sair</span>
+                        </a>
                     </div>
-                    <span><?php echo htmlspecialchars($username); ?></span>
                 </div>
             </div>
         </div>
@@ -454,25 +688,41 @@ $username = 'Usuário Público';
         </section>
 
         <!-- FILTROS -->
-        <section class="filter-section">
-            <div class="filter-header">
-                <div class="filter-title">
-                    <svg class="icon icon-sm" viewBox="0 0 24 24" style="color: var(--primary)"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
-                    <h3>Filtros</h3>
+        <section class="card" style="margin-bottom: 2rem;">
+            <div class="card-header" style="background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%); color: white; border-radius: var(--radius-lg) var(--radius-lg) 0 0;">
+                <div class="card-title" style="color: white; display: flex; align-items: center; justify-content: space-between; width: 100%;">
+                    <div style="display: flex; align-items: center; gap: 0.75rem;">
+                        <div style="width: 48px; height: 48px; background: rgba(255,255,255,0.2); border-radius: var(--radius-lg); display: flex; align-items: center; justify-content: center;">
+                            <svg class="icon icon-lg" viewBox="0 0 24 24" style="color: white;">
+                                <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <h2 style="font-size: var(--font-size-xl); font-weight: 700; margin: 0;">Filtros de Pesquisa</h2>
+                            <p style="font-size: var(--font-size-sm); opacity: 0.9; margin: 0.25rem 0 0 0;">Refine sua busca nos registros</p>
+                        </div>
+                    </div>
+                    <button type="button" id="toggleFilters" class="toggle-btn" style="background: rgba(255,255,255,0.2); color: white; border: none; padding: 0.5rem 1rem; border-radius: var(--radius-md); cursor: pointer; display: flex; align-items: center; gap: 0.5rem; font-weight: 600; transition: all 0.2s;">
+                        <span class="toggle-icon" style="font-size: 0.875rem;">▼</span>
+                        <span class="toggle-text">Expandir</span>
+                    </button>
                 </div>
-                <button type="button" id="toggleFilters" class="toggle-btn">
-                    <span class="toggle-icon">&#9660;</span>
-                    <span class="toggle-text">Expandir</span>
-                </button>
             </div>
 
-            <div class="filter-content" id="filterContent">
+            <div class="filter-content" id="filterContent" style="padding: 2rem;">
                 <form method="GET" action="consulta.php">
-                    <div class="filter-grid">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; margin-bottom: 1.5rem;">
+
                         <?php if ($coluna_status_existe): ?>
                         <div class="filter-group">
-                            <label for="status" class="filter-label">Status</label>
-                            <select id="status" name="status" class="filter-select">
+                            <label for="status" class="filter-label" style="display: flex; align-items: center; gap: 0.5rem; font-weight: 600; color: var(--gray-700); margin-bottom: 0.5rem; font-size: var(--font-size-sm);">
+                                <svg class="icon icon-sm" viewBox="0 0 24 24" style="color: var(--primary);">
+                                    <circle cx="12" cy="12" r="10"/>
+                                    <path d="m9 12 2 2 4-4"/>
+                                </svg>
+                                Status
+                            </label>
+                            <select id="status" name="status" class="filter-select" style="width: 100%; padding: 0.75rem 1rem; border: 2px solid var(--gray-300); border-radius: var(--radius-md); font-size: var(--font-size-base); transition: all 0.2s; cursor: pointer; background: white;">
                                 <option value="ativo" <?php echo ($filtro_status === 'ativo') ? 'selected' : ''; ?>>Apenas Ativos</option>
                                 <option value="arquivado" <?php echo ($filtro_status === 'arquivado') ? 'selected' : ''; ?>>Apenas Arquivados</option>
                                 <option value="todos" <?php echo ($filtro_status === 'todos') ? 'selected' : ''; ?>>Todos</option>
@@ -481,9 +731,16 @@ $username = 'Usuário Público';
                         <?php endif; ?>
 
                         <div class="filter-group">
-                            <label for="tripulante" class="filter-label">Tripulante</label>
+                            <label for="tripulante" class="filter-label" style="display: flex; align-items: center; gap: 0.5rem; font-weight: 600; color: var(--gray-700); margin-bottom: 0.5rem; font-size: var(--font-size-sm);">
+                                <svg class="icon icon-sm" viewBox="0 0 24 24" style="color: var(--primary);">
+                                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                                    <circle cx="12" cy="7" r="4"/>
+                                </svg>
+                                Tripulante
+                            </label>
                             <input type="text" id="tripulante" name="tripulante"
                                    class="filter-input"
+                                   style="width: 100%; padding: 0.75rem 1rem; border: 2px solid var(--gray-300); border-radius: var(--radius-md); font-size: var(--font-size-base); transition: all 0.2s;"
                                    value="<?php echo htmlspecialchars($filtro_tripulante); ?>"
                                    placeholder="Digite o nome..."
                                    list="tripulantes"
@@ -496,9 +753,17 @@ $username = 'Usuário Público';
                         </div>
 
                         <div class="filter-group">
-                            <label for="mes" class="filter-label">Mês</label>
-                            <select id="mes" name="mes" class="filter-select">
-                                <option value="">Todos</option>
+                            <label for="mes" class="filter-label" style="display: flex; align-items: center; gap: 0.5rem; font-weight: 600; color: var(--gray-700); margin-bottom: 0.5rem; font-size: var(--font-size-sm);">
+                                <svg class="icon icon-sm" viewBox="0 0 24 24" style="color: var(--primary);">
+                                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                                    <line x1="16" y1="2" x2="16" y2="6"/>
+                                    <line x1="8" y1="2" x2="8" y2="6"/>
+                                    <line x1="3" y1="10" x2="21" y2="10"/>
+                                </svg>
+                                Mês
+                            </label>
+                            <select id="mes" name="mes" class="filter-select" style="width: 100%; padding: 0.75rem 1rem; border: 2px solid var(--gray-300); border-radius: var(--radius-md); font-size: var(--font-size-base); transition: all 0.2s; cursor: pointer; background: white;">
+                                <option value="">Todos os meses</option>
                                 <?php
                                 $meses = [
                                     'Janeiro' => '01', 'Fevereiro' => '02', 'Março' => '03',
@@ -515,9 +780,18 @@ $username = 'Usuário Público';
                         </div>
 
                         <div class="filter-group">
-                            <label for="ano" class="filter-label">Ano</label>
-                            <select id="ano" name="ano" class="filter-select">
-                                <option value="">Todos</option>
+                            <label for="ano" class="filter-label" style="display: flex; align-items: center; gap: 0.5rem; font-weight: 600; color: var(--gray-700); margin-bottom: 0.5rem; font-size: var(--font-size-sm);">
+                                <svg class="icon icon-sm" viewBox="0 0 24 24" style="color: var(--primary);">
+                                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                                    <line x1="16" y1="2" x2="16" y2="6"/>
+                                    <line x1="8" y1="2" x2="8" y2="6"/>
+                                    <line x1="3" y1="10" x2="21" y2="10"/>
+                                    <path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01M16 18h.01"/>
+                                </svg>
+                                Ano
+                            </label>
+                            <select id="ano" name="ano" class="filter-select" style="width: 100%; padding: 0.75rem 1rem; border: 2px solid var(--gray-300); border-radius: var(--radius-md); font-size: var(--font-size-base); transition: all 0.2s; cursor: pointer; background: white;">
+                                <option value="">Todos os anos</option>
                                 <?php for ($ano = 2024; $ano <= 2030; $ano++): ?>
                                     <option value="<?php echo $ano; ?>" <?php echo ($filtro_ano == $ano) ? 'selected' : ''; ?>>
                                         <?php echo $ano; ?>
@@ -527,18 +801,35 @@ $username = 'Usuário Público';
                         </div>
                     </div>
 
-                    <div class="filter-actions">
-                        <button type="submit" class="btn btn-primary">
-                            <svg class="icon icon-sm" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-                            Aplicar
-                        </button>
-                        <a href="consulta.php" class="btn btn-secondary">
-                            <svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
-                            Limpar
-                        </a>
-                        <button type="button" class="btn btn-success" onclick="window.location.href='form.php'">
-                            <svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
-                            Novo
+                    <!-- Botões de Ação Reorganizados -->
+                    <div style="display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding-top: 1.5rem; border-top: 2px solid var(--gray-100); flex-wrap: wrap;">
+
+                        <!-- Grupo: Ações de Filtro (Esquerda) -->
+                        <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+                            <button type="submit" class="btn btn-primary" style="padding: 0.75rem 1.5rem; font-size: var(--font-size-base); font-weight: 600; border-radius: var(--radius-md); display: flex; align-items: center; gap: 0.5rem; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3); transition: all 0.2s;">
+                                <svg class="icon icon-sm" viewBox="0 0 24 24">
+                                    <circle cx="11" cy="11" r="8"/>
+                                    <path d="m21 21-4.35-4.35"/>
+                                </svg>
+                                Aplicar Filtros
+                            </button>
+                            <a href="consulta.php" class="btn btn-secondary" style="padding: 0.75rem 1.5rem; font-size: var(--font-size-base); font-weight: 600; border-radius: var(--radius-md); display: flex; align-items: center; gap: 0.5rem; transition: all 0.2s; text-decoration: none;">
+                                <svg class="icon icon-sm" viewBox="0 0 24 24">
+                                    <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/>
+                                    <path d="M21 3v5h-5"/>
+                                    <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/>
+                                    <path d="M8 16H3v5"/>
+                                </svg>
+                                Limpar
+                            </a>
+                        </div>
+
+                        <!-- Grupo: Novo Registro (Direita - Destacado) -->
+                        <button type="button" class="btn btn-success" onclick="window.location.href='form.php'" style="padding: 0.75rem 2rem; font-size: var(--font-size-base); font-weight: 700; border-radius: var(--radius-md); display: flex; align-items: center; gap: 0.5rem; box-shadow: 0 4px 16px rgba(16, 185, 129, 0.3); transition: all 0.2s; white-space: nowrap;">
+                            <svg class="icon icon-sm" viewBox="0 0 24 24">
+                                <path d="M12 5v14M5 12h14"/>
+                            </svg>
+                            <span>Novo Registro</span>
                         </button>
                     </div>
 
@@ -546,6 +837,37 @@ $username = 'Usuário Público';
                 </form>
             </div>
         </section>
+
+        <style>
+            .filter-input:focus, .filter-select:focus {
+                outline: none;
+                border-color: var(--primary) !important;
+                box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+            }
+
+            .btn:hover {
+                transform: translateY(-2px);
+            }
+
+            .btn:active {
+                transform: translateY(0);
+            }
+
+            .toggle-btn:hover {
+                background: rgba(255,255,255,0.3) !important;
+            }
+
+            .filter-content {
+                max-height: 1000px;
+                overflow: hidden;
+                transition: max-height 0.3s ease-out;
+            }
+
+            .filter-content.collapsed {
+                max-height: 0;
+                padding: 0 2rem !important;
+            }
+        </style>
 
         <!-- TABELA DE DADOS -->
         <section class="card">
@@ -751,15 +1073,21 @@ $username = 'Usuário Público';
                                 <!-- AÇÕES -->
                                 <td class="col-actions">
                                     <div style="display: flex; gap: 0.375rem; justify-content: center;">
-                                        <a href="editar.php?id=<?php echo $registro['id']; ?>" class="btn btn-ghost btn-sm" title="Editar">
+                                        <a href="editar.php?id=<?php echo $registro['id']; ?><?php echo $query_string; ?>"
+                                           class="btn btn-ghost btn-sm"
+                                           title="Editar registro">
                                             <svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
                                         </a>
-                                        <a href="deletar.php?id=<?php echo $registro['id']; ?>"
+
+                                        <?php if (is_admin()): ?>
+                                        <!-- Botão de deletar - APENAS PARA ADMINISTRADORES -->
+                                        <a href="deletar.php?id=<?php echo $registro['id']; ?><?php echo $query_string; ?>"
                                            class="btn btn-ghost btn-sm" style="color: var(--danger);"
-                                           title="Excluir"
-                                           onclick="return confirm('ATENÇÃO: Esta ação irá excluir permanentemente o registro.\n\nTripulante: <?php echo htmlspecialchars($registro['tripulante'] ?? ''); ?>\nPeríodo: <?php echo htmlspecialchars($registro['mes'] ?? ''); ?>/<?php echo htmlspecialchars($registro['ano'] ?? ''); ?>\n\nDeseja continuar?')">
+                                           title="Excluir registro (Apenas Admin)"
+                                           onclick="return confirm('⚠️ ATENÇÃO: Esta ação irá excluir PERMANENTEMENTE o registro.\n\n📋 Tripulante: <?php echo htmlspecialchars($registro['tripulante'] ?? ''); ?>\n📅 Período: <?php echo htmlspecialchars($registro['mes'] ?? ''); ?>/<?php echo htmlspecialchars($registro['ano'] ?? ''); ?>\n\n❌ Esta ação NÃO pode ser desfeita!\n\nDeseja realmente continuar?')">
                                             <svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
                                         </a>
+                                        <?php endif; ?>
                                     </div>
                                 </td>
                             </tr>
@@ -778,25 +1106,48 @@ $username = 'Usuário Público';
                     </a>
                 </div>
             <?php endif; ?>
-        </section>
 
-        <!-- LEGENDA -->
-        <section class="legend">
-            <div class="legend-title">Legenda</div>
-            <div class="legend-items">
-                <div class="legend-item">
-                    <span class="status-badge status-high">OK</span>
-                    <span>Valores ideais</span>
+            <!-- PAGINAÇÃO -->
+            <?php if ($total_paginas > 1): ?>
+            <div class="card-footer" style="padding: 1.5rem; border-top: 1px solid var(--gray-200); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
+                <div class="pagination-info" style="color: var(--gray-600); font-size: var(--font-size-sm);">
+                    Mostrando <?php echo min($offset + 1, $total_registros); ?> - <?php echo min($offset + $registros_por_pagina, $total_registros); ?> de <?php echo number_format($total_registros); ?> registros
                 </div>
-                <div class="legend-item">
-                    <span class="status-badge status-medium">Alerta</span>
-                    <span>Requer atenção</span>
-                </div>
-                <div class="legend-item">
-                    <span class="status-badge status-low">Crítico</span>
-                    <span>Ação necessária</span>
+                <div class="pagination" style="display: flex; gap: 0.5rem; align-items: center;">
+                    <?php if ($pagina_atual > 1): ?>
+                        <a href="?pagina=1<?php echo $query_string; ?>" class="btn btn-sm btn-secondary" title="Primeira página">
+                            <svg class="icon icon-sm" viewBox="0 0 24 24"><path d="m11 17-5-5 5-5M18 17l-5-5 5-5"/></svg>
+                        </a>
+                        <a href="?pagina=<?php echo $pagina_atual - 1; ?><?php echo $query_string; ?>" class="btn btn-sm btn-secondary" title="Página anterior">
+                            <svg class="icon icon-sm" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg>
+                        </a>
+                    <?php endif; ?>
+
+                    <?php
+                    // Mostrar 5 páginas ao redor da página atual
+                    $inicio = max(1, $pagina_atual - 2);
+                    $fim = min($total_paginas, $pagina_atual + 2);
+
+                    for ($i = $inicio; $i <= $fim; $i++):
+                    ?>
+                        <a href="?pagina=<?php echo $i; ?><?php echo $query_string; ?>"
+                           class="btn btn-sm <?php echo $i === $pagina_atual ? 'btn-primary' : 'btn-secondary'; ?>"
+                           style="min-width: 2.5rem;">
+                            <?php echo $i; ?>
+                        </a>
+                    <?php endfor; ?>
+
+                    <?php if ($pagina_atual < $total_paginas): ?>
+                        <a href="?pagina=<?php echo $pagina_atual + 1; ?><?php echo $query_string; ?>" class="btn btn-sm btn-secondary" title="Próxima página">
+                            <svg class="icon icon-sm" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>
+                        </a>
+                        <a href="?pagina=<?php echo $total_paginas; ?><?php echo $query_string; ?>" class="btn btn-sm btn-secondary" title="Última página">
+                            <svg class="icon icon-sm" viewBox="0 0 24 24"><path d="m13 17 5-5-5-5M6 17l5-5-5-5"/></svg>
+                        </a>
+                    <?php endif; ?>
                 </div>
             </div>
+            <?php endif; ?>
         </section>
     </main>
 
@@ -1070,6 +1421,128 @@ $username = 'Usuário Público';
             tableRows.forEach((row, index) => {
                 row.style.animationDelay = `${index * 50}ms`;
                 observer.observe(row);
+            });
+
+            // === LOADING STATE E NAVEGAÇÃO ===
+
+            // Mostrar loading ao navegar
+            const loadingOverlay = document.getElementById('loadingOverlay');
+
+            // Adicionar loading aos links de paginação e navegação
+            document.querySelectorAll('.pagination a, a[href*="editar.php"]').forEach(link => {
+                link.addEventListener('click', function(e) {
+                    if (!e.ctrlKey && !e.metaKey) { // Não mostrar loading se abrir em nova aba
+                        loadingOverlay.classList.add('active');
+                    }
+                });
+            });
+
+            // Remover loading ao voltar
+            window.addEventListener('pageshow', function(event) {
+                if (event.persisted || performance.getEntriesByType("navigation")[0].type === 'back_forward') {
+                    loadingOverlay.classList.remove('active');
+                }
+            });
+
+            // Auto-hide mensagens de sucesso após 5 segundos
+            const successMessages = document.querySelectorAll('.message.success');
+            successMessages.forEach(message => {
+                setTimeout(() => {
+                    message.style.transition = 'opacity 0.5s, transform 0.5s';
+                    message.style.opacity = '0';
+                    message.style.transform = 'translateY(-20px)';
+                    setTimeout(() => {
+                        message.style.display = 'none';
+                    }, 500);
+                }, 5000);
+            });
+
+            // Adicionar indicador de ordenação nas colunas (preparação para futuro)
+            const tableHeaders = document.querySelectorAll('.data-table thead th:not(.col-actions)');
+            tableHeaders.forEach(header => {
+                if (header.textContent.trim() && !header.classList.contains('group-header')) {
+                    header.style.cursor = 'pointer';
+                    header.title = 'Clique para ordenar (em breve)';
+                }
+            });
+
+            // Adicionar confirmação visual ao deletar
+            const deleteButtons = document.querySelectorAll('a[href*="deletar.php"]');
+            deleteButtons.forEach(button => {
+                button.addEventListener('click', function(e) {
+                    const confirmed = this.onclick ? this.onclick.call(this, e) : true;
+                    if (confirmed !== false) {
+                        loadingOverlay.classList.add('active');
+                    }
+                });
+            });
+
+            // Scroll suave ao voltar para a página (manter posição)
+            const scrollPosition = sessionStorage.getItem('consulta_scroll_position');
+            if (scrollPosition) {
+                window.scrollTo(0, parseInt(scrollPosition));
+                sessionStorage.removeItem('consulta_scroll_position');
+            }
+
+            // Salvar posição antes de sair
+            window.addEventListener('beforeunload', function() {
+                sessionStorage.setItem('consulta_scroll_position', window.scrollY);
+            });
+
+            // Melhorar feedback visual dos botões de ação
+            const actionButtons = document.querySelectorAll('.col-actions .btn');
+            actionButtons.forEach(button => {
+                button.addEventListener('mouseenter', function() {
+                    this.style.transform = 'scale(1.1)';
+                });
+                button.addEventListener('mouseleave', function() {
+                    this.style.transform = 'scale(1)';
+                });
+            });
+
+            // === MELHORIAS DE ACESSIBILIDADE ===
+
+            // Adicionar navegação por teclado na tabela
+            let selectedRow = null;
+            document.addEventListener('keydown', function(e) {
+                const rows = Array.from(document.querySelectorAll('.data-table tbody tr'));
+                if (rows.length === 0) return;
+
+                if (!selectedRow && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+                    selectedRow = rows[0];
+                    selectedRow.style.outline = '2px solid var(--primary)';
+                    selectedRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    return;
+                }
+
+                if (!selectedRow) return;
+
+                const currentIndex = rows.indexOf(selectedRow);
+
+                if (e.key === 'ArrowDown' && currentIndex < rows.length - 1) {
+                    selectedRow.style.outline = 'none';
+                    selectedRow = rows[currentIndex + 1];
+                    selectedRow.style.outline = '2px solid var(--primary)';
+                    selectedRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                } else if (e.key === 'ArrowUp' && currentIndex > 0) {
+                    selectedRow.style.outline = 'none';
+                    selectedRow = rows[currentIndex - 1];
+                    selectedRow.style.outline = '2px solid var(--primary)';
+                    selectedRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                } else if (e.key === 'Enter' && selectedRow) {
+                    const editButton = selectedRow.querySelector('a[href*="editar.php"]');
+                    if (editButton) {
+                        editButton.click();
+                    }
+                }
+            });
+
+            // Remover seleção ao clicar fora
+            document.addEventListener('click', function(e) {
+                if (!e.target.closest('.data-table') && selectedRow) {
+                    selectedRow.style.outline = 'none';
+                    selectedRow = null;
+                }
             });
         });
     </script>

@@ -1,20 +1,28 @@
 <?php
+/**
+ * SUBMIT DE FORMULÁRIO - TSI
+ * ATENÇÃO: Requer autenticação
+ */
 
 // Iniciar a sessão
 session_start();
 
-// Verificar se o usuário está logado
-//if (!isset($_SESSION['user_id'])) {
-    // Se não estiver logado, redireciona para a página de login
-  //  header("Location: login.php");
-  //  exit(); // Evita que o código continue executando
-// }
+// Conectar ao banco de dados e carregar autenticação
+require_once 'includes/db.php';
+require_once 'includes/auth.php';
 
+// ============================================
+// VALIDAÇÃO DE SEGURANÇA
+// ============================================
+
+// Verificar se está logado
+require_login();
+
+$user = get_logged_user();
+
+// Configurações de erro
 error_reporting(E_ALL);
 ini_set('display_errors', '1');
-
-// Conexão com o banco de dados
-require_once 'includes/db.php'; // Arquivo de conexão com o banco
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     // Coletar e validar os dados do formulário

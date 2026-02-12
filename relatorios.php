@@ -7,6 +7,12 @@ ini_set('display_errors', 1);
 session_start();
 
 require_once 'includes/db.php';
+require_once 'includes/auth.php';
+
+// Proteger página - requer login
+require_login();
+
+$user = get_logged_user();
 
 // Definir período padrão (últimos 3 meses)
 $periodo_inicio = isset($_GET['periodo_inicio']) ? $_GET['periodo_inicio'] : date('Y-m-01', strtotime('-2 months'));
@@ -123,9 +129,6 @@ try {
 } catch (Exception $e) {
     $backup_stats = [];
 }
-
-// Informações do usuário logado
-$username = 'Acesso Publico';
 ?>
 
 <!DOCTYPE html>
@@ -138,6 +141,8 @@ $username = 'Acesso Publico';
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
     <link rel="stylesheet" href="css/app.css">
+    <script src="js/theme.js"></script>
+    <script src="js/user-dropdown.js"></script>
 </head>
 
 <body>
@@ -164,28 +169,80 @@ $username = 'Acesso Publico';
         <div class="nav-container">
             <div class="nav-links">
                 <a href="index.php">
-                    <svg class="icon icon-sm" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                    <svg class="icon" viewBox="0 0 24 24"><path d="M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z"/></svg>
                     Dashboard
                 </a>
                 <a href="form.php">
-                    <svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                    <svg class="icon" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
                     Novo Registro
                 </a>
                 <a href="consulta.php">
-                    <svg class="icon icon-sm" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                    <svg class="icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
                     Consultar Dados
                 </a>
                 <a href="relatorios.php" class="active">
-                    <svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
+                    <svg class="icon" viewBox="0 0 24 24"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
                     Relatorios
                 </a>
+                <?php if (is_admin()): ?>
+                <a href="auth/cadastro_usuario.php">
+                    <svg class="icon" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><path d="M20 8v6M23 11h-6"/></svg>
+                    Usuários
+                </a>
+                <?php endif; ?>
             </div>
             <div class="user-section">
-                <div class="user-info">
-                    <div class="user-avatar">
-                        <svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                <button class="theme-toggle-btn" onclick="toggleTheme()" title="Alternar tema">
+                    <svg id="theme-icon-light" class="icon" viewBox="0 0 24 24" style="display: none;">
+                        <circle cx="12" cy="12" r="5"></circle>
+                        <line x1="12" y1="1" x2="12" y2="3"></line>
+                        <line x1="12" y1="21" x2="12" y2="23"></line>
+                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                        <line x1="1" y1="12" x2="3" y2="12"></line>
+                        <line x1="21" y1="12" x2="23" y2="12"></line>
+                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                    </svg>
+                    <svg id="theme-icon-dark" class="icon" viewBox="0 0 24 24">
+                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                    </svg>
+                </button>
+                <div class="user-dropdown">
+                    <button class="user-dropdown-toggle">
+                        <div class="user-avatar">
+                            <svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                        </div>
+                        <span class="user-name"><?php echo htmlspecialchars($user['nome']); ?></span>
+                        <svg class="icon icon-sm chevron" viewBox="0 0 24 24">
+                            <polyline points="6 9 12 15 18 9"></polyline>
+                        </svg>
+                    </button>
+                    <div class="user-dropdown-menu">
+                        <div class="dropdown-header">
+                            <div class="dropdown-user-info">
+                                <div class="dropdown-user-name"><?php echo htmlspecialchars($user['nome']); ?></div>
+                                <div class="dropdown-user-email"><?php echo htmlspecialchars($user['email']); ?></div>
+                            </div>
+                        </div>
+                        <div class="dropdown-divider"></div>
+                        <a href="auth/editar_perfil.php" class="dropdown-item">
+                            <svg class="icon icon-sm" viewBox="0 0 24 24">
+                                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                                <circle cx="12" cy="7" r="4"/>
+                            </svg>
+                            <span>Editar Perfil</span>
+                        </a>
+                        <div class="dropdown-divider"></div>
+                        <a href="auth/logout.php" class="dropdown-item danger">
+                            <svg class="icon icon-sm" viewBox="0 0 24 24">
+                                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                                <polyline points="16 17 21 12 16 7"/>
+                                <line x1="21" y1="12" x2="9" y2="12"/>
+                            </svg>
+                            <span>Sair</span>
+                        </a>
                     </div>
-                    <span><?php echo htmlspecialchars($username); ?></span>
                 </div>
             </div>
         </div>

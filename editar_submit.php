@@ -1,8 +1,24 @@
 <?php
-// Iniciar a sessão (mantido para compatibilidade)
+/**
+ * EDITAR SUBMIT - TSI
+ * ATENÇÃO: Requer autenticação
+ */
+
+// Iniciar a sessão
 session_start();
 
-require_once 'includes/db.php'; // Conexão com o banco de dados
+// Conectar ao banco de dados e carregar autenticação
+require_once 'includes/db.php';
+require_once 'includes/auth.php';
+
+// ============================================
+// VALIDAÇÃO DE SEGURANÇA
+// ============================================
+
+// Verificar se está logado
+require_login();
+
+$user = get_logged_user();
 
 // Verificar se o ID foi passado
 $id = isset($_GET['id']) ? intval($_GET['id']) : 0;
@@ -99,13 +115,33 @@ if ($id > 0 && $_SERVER['REQUEST_METHOD'] == 'POST') {
         // Executar a query
         $stmt->execute();
 
-        // Redirecionar com mensagem de sucesso
-        header("Location: consulta.php?status=updated");
+        // Preservar filtros ao redirecionar
+        $query_params = [];
+        if (isset($_GET['tripulante'])) $query_params['tripulante'] = $_GET['tripulante'];
+        if (isset($_GET['mes'])) $query_params['mes'] = $_GET['mes'];
+        if (isset($_GET['ano'])) $query_params['ano'] = $_GET['ano'];
+        if (isset($_GET['status'])) $query_params['status'] = $_GET['status'];
+        if (isset($_GET['pagina'])) $query_params['pagina'] = $_GET['pagina'];
+        $query_params['updated'] = '1';
+
+        $query_string = http_build_query($query_params);
+
+        // Redirecionar com mensagem de sucesso e filtros preservados
+        header("Location: consulta.php?" . $query_string);
         exit();
 
     } catch (PDOException $e) {
-        // Em caso de erro, redirecionar com mensagem de erro
-        header("Location: editar.php?id=$id&status=error&message=" . urlencode($e->getMessage()));
+        // Em caso de erro, redirecionar com mensagem de erro e preservar filtros
+        $query_params = [];
+        if (isset($_GET['tripulante'])) $query_params['tripulante'] = $_GET['tripulante'];
+        if (isset($_GET['mes'])) $query_params['mes'] = $_GET['mes'];
+        if (isset($_GET['ano'])) $query_params['ano'] = $_GET['ano'];
+        if (isset($_GET['status'])) $query_params['status'] = $_GET['status'];
+        if (isset($_GET['pagina'])) $query_params['pagina'] = $_GET['pagina'];
+
+        $query_string = !empty($query_params) ? '&' . http_build_query($query_params) : '';
+
+        header("Location: editar.php?id=$id&error=1&message=" . urlencode($e->getMessage()) . $query_string);
         exit();
     }
 } else {
